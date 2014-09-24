@@ -128,6 +128,7 @@ module.exports.generator = function (config, logger, fileParser) {
       swigFunctions.setTypeInfo(self.cachedData.typeInfo);
       swigFunctions.setSettings(self.cachedData.settings);
       swigFilters.setSiteDns(self.cachedData.siteDns);
+      swigFilters.setFirebaseConf(config.get('webhook'));
 
       callback(self.cachedData.data, self.cachedData.typeInfo);
       return;
@@ -178,6 +179,7 @@ module.exports.generator = function (config, logger, fileParser) {
         var siteDns = snap.val() || config.get('webhook').siteName + '.webhook.org';
         self.cachedData.siteDns = siteDns;
         swigFilters.setSiteDns(siteDns);
+        swigFilters.setFirebaseConf(config.get('webhook'));
 
         callback(data, typeInfo);
       });
@@ -614,7 +616,7 @@ module.exports.generator = function (config, logger, fileParser) {
               {
                 var val = publishedItems[key];
 
-                if(templateWidgetName) {
+                if(templateWidgetName && val[templateWidgetName]) {
                   overrideFile = 'templates/' + objectName + '/layouts/' + val[templateWidgetName];
                 }
 
@@ -646,6 +648,7 @@ module.exports.generator = function (config, logger, fileParser) {
 
                 if(fs.existsSync(overrideFile)) {
                   writeTemplate(overrideFile, newPath, { item: val });
+                  overrideFile = null;
                 } else {
                   writeTemplate(file, newPath, { item: val });
                 }
@@ -655,7 +658,7 @@ module.exports.generator = function (config, logger, fileParser) {
               {
                 var val = items[key];
 
-                if(templateWidgetName) {
+                if(templateWidgetName && val[templateWidgetName]) {
                   overrideFile = 'templates/' + objectName + '/layouts/' + val[templateWidgetName];
                 }
 
@@ -663,6 +666,7 @@ module.exports.generator = function (config, logger, fileParser) {
 
                 if(fs.existsSync(overrideFile)) {
                   writeTemplate(overrideFile, newPath, { item: val });
+                  overrideFile = null;
                 } else {
                   writeTemplate(file, newPath, { item: val });
                 }
@@ -1081,6 +1085,8 @@ module.exports.generator = function (config, logger, fileParser) {
    * @param  {Function}  done      Callback to call when operation is done
    */
   this.init = function(sitename, secretkey, copyCms, firebase, done) {
+    var oldConf = config.get('webhook');
+
     var confFile = fs.readFileSync('./libs/.firebase.conf.jst');
 
     if(firebase) {
@@ -1088,7 +1094,7 @@ module.exports.generator = function (config, logger, fileParser) {
     }
 
     // TODO: Grab bucket information from server eventually, for now just use the site name
-    var templated = _.template(confFile, { secretKey: secretkey, siteName: sitename, firebase: firebase });
+    var templated = _.template(confFile, { secretKey: secretkey, siteName: sitename, firebase: firebase, embedlyKey: oldConf.embedly || 'your-embedly-key', serverAddr: oldConf.server || 'your-server-address' });
 
     fs.writeFileSync('./.firebase.conf', templated);
 
